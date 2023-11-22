@@ -58,8 +58,8 @@ void
 fu_hid_device_set_ep_addr_out(FuHidDevice *self, guint8 ep_addr_out);
 guint8
 fu_hid_device_get_ep_addr_out(FuHidDevice *self);
-FuHidDescriptor *
-fu_hid_device_parse_descriptor(FuHidDevice *self, GError **error);
+GPtrArray *
+fu_hid_device_parse_descriptors(FuHidDevice *self, GError **error);
 gboolean
 fu_hid_device_set_report(FuHidDevice *self,
 			 guint8 value,
