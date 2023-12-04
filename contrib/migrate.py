@@ -72,7 +72,6 @@ if __name__ == "__main__":
             "fu_common_set_contents_bytes": "fu_bytes_set_contents",
             "fu_common_get_contents_bytes": "fu_bytes_get_contents",
             "fu_common_get_contents_stream": "fu_bytes_get_contents_stream",
-            "fu_common_get_contents_fd": "fu_bytes_get_contents_fd",
             "fu_common_read_uint8_safe": "fu_memread_uint8_safe",
             "fu_common_read_uint16_safe": "fu_memread_uint16_safe",
             "fu_common_read_uint32_safe": "fu_memread_uint32_safe",

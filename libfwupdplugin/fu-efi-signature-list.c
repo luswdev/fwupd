@@ -16,6 +16,7 @@
 #include "fu-efi-signature-list.h"
 #include "fu-efi-signature-private.h"
 #include "fu-efi-struct.h"
+#include "fu-input-stream.h"
 #include "fu-mem.h"
 
 /**
@@ -188,20 +189,21 @@ fu_efi_signature_list_get_version(FuEfiSignatureList *self)
 }
 
 static gboolean
-fu_efi_signature_list_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_efi_signature_list_validate(FuFirmware *firmware,
+			       GInputStream *stream,
+			       gsize offset,
+			       GError **error)
 {
 	fwupd_guid_t guid = {0x0};
 	g_autofree gchar *sig_type = NULL;
 
-	/* read EFI_SIGNATURE_LIST */
-	if (!fu_memcpy_safe((guint8 *)&guid,
-			    sizeof(guid),
-			    0x0, /* dst */
-			    g_bytes_get_data(fw, NULL),
-			    g_bytes_get_size(fw),
-			    offset, /* src */
-			    sizeof(guid),
-			    error)) {
+	if (!fu_input_stream_read_safe(stream,
+				       (guint8 *)&guid,
+				       sizeof(guid),
+				       0,
+				       offset, /* seek */
+				       sizeof(guid),
+				       error)) {
 		g_prefix_error(error, "failed to read magic: ");
 		return FALSE;
 	}
@@ -282,7 +284,7 @@ static void
 fu_efi_signature_list_class_init(FuEfiSignatureListClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->check_magic = fu_efi_signature_list_check_magic;
+	klass_firmware->validate = fu_efi_signature_list_validate;
 	klass_firmware->parse = fu_efi_signature_list_parse;
 	klass_firmware->write = fu_efi_signature_list_write;
 }

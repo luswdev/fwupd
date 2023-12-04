@@ -329,24 +329,25 @@ fu_emmc_device_setup(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_emmc_device_prepare_firmware(FuDevice *device,
-				GBytes *fw,
+				GInputStream *stream,
 				FwupdInstallFlags flags,
 				GError **error)
 {
 	FuEmmcDevice *self = FU_EMMC_DEVICE(device);
-	gsize fw_size = g_bytes_get_size(fw);
+	g_autoptr(FuFirmware) firmware = fu_firmware_new();
 
 	/* check alignment */
-	if ((fw_size % self->sect_size) > 0) {
+	if (fu_firmware_parse_stream(firmware, stream, 0x0, flags, error))
+		return NULL;
+	if ((fu_firmware_get_size(firmware) % self->sect_size) > 0) {
 		g_set_error(error,
 			    FWUPD_ERROR,
 			    FWUPD_ERROR_INVALID_FILE,
 			    "firmware data size (%" G_GSIZE_FORMAT ") is not aligned",
-			    fw_size);
+			    fu_firmware_get_size(firmware));
 		return NULL;
 	}
-
-	return fu_firmware_new_from_bytes(fw);
+	return g_steal_pointer(&firmware);
 }
 
 static gboolean

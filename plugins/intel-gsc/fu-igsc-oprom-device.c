@@ -103,7 +103,7 @@ fu_igsc_oprom_device_setup(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_igsc_oprom_device_prepare_firmware(FuDevice *device,
-				      GBytes *fw,
+				      GInputStream *stream,
 				      FwupdInstallFlags flags,
 				      GError **error)
 {
@@ -117,7 +117,7 @@ fu_igsc_oprom_device_prepare_firmware(FuDevice *device,
 	g_autoptr(FuFirmware) fw_linear = fu_linear_firmware_new(FU_TYPE_IGSC_OPROM_FIRMWARE);
 
 	/* parse container */
-	if (!fu_firmware_parse(fw_linear, fw, flags, error))
+	if (!fu_firmware_parse_stream(fw_linear, stream, 0x0, flags, error))
 		return NULL;
 
 	/* get correct image */

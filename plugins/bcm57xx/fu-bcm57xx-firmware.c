@@ -300,16 +300,14 @@ fu_bcm57xx_firmware_parse_dict(FuBcm57xxFirmware *self,
 }
 
 static gboolean
-fu_bcm57xx_firmware_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_bcm57xx_firmware_validate(FuFirmware *firmware,
+			     GInputStream *stream,
+			     gsize offset,
+			     GError **error)
 {
 	guint32 magic = 0;
 
-	if (!fu_memread_uint32_safe(g_bytes_get_data(fw, NULL),
-				    g_bytes_get_size(fw),
-				    0x0,
-				    &magic,
-				    G_BIG_ENDIAN,
-				    error)) {
+	if (!fu_input_stream_read_u32(stream, 0x0, &magic, G_BIG_ENDIAN, error)) {
 		g_prefix_error(error, "failed to read magic: ");
 		return FALSE;
 	}
@@ -651,7 +649,7 @@ static void
 fu_bcm57xx_firmware_class_init(FuBcm57xxFirmwareClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->check_magic = fu_bcm57xx_firmware_check_magic;
+	klass_firmware->validate = fu_bcm57xx_firmware_validate;
 	klass_firmware->parse = fu_bcm57xx_firmware_parse;
 	klass_firmware->export = fu_bcm57xx_firmware_export;
 	klass_firmware->write = fu_bcm57xx_firmware_write;

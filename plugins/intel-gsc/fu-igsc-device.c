@@ -476,7 +476,7 @@ fu_igsc_device_probe(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_igsc_device_prepare_firmware(FuDevice *device,
-				GBytes *fw,
+				GInputStream *stream,
 				FwupdInstallFlags flags,
 				GError **error)
 {
@@ -484,7 +484,7 @@ fu_igsc_device_prepare_firmware(FuDevice *device,
 	g_autoptr(FuFirmware) firmware = fu_igsc_code_firmware_new();
 
 	/* check project code */
-	if (!fu_firmware_parse(firmware, fw, flags, error))
+	if (!fu_firmware_parse_stream(firmware, stream, 0x0, flags, error))
 		return NULL;
 	if (g_strcmp0(self->project, fu_firmware_get_id(firmware)) != 0) {
 		g_set_error(error,

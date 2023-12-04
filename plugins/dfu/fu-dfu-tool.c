@@ -627,7 +627,7 @@ fu_dfu_tool_write(FuDfuTool *self, gchar **values, GError **error)
 {
 	FwupdInstallFlags flags = FWUPD_INSTALL_FLAG_NO_SEARCH;
 	g_autoptr(FuDfuDevice) device = NULL;
-	g_autoptr(GBytes) fw = NULL;
+	g_autoptr(GInputStream) stream = NULL;
 	g_autoptr(FuDeviceLocker) locker = NULL;
 	g_autoptr(FuProgress) progress = fu_progress_new(G_STRLOC);
 
@@ -641,8 +641,8 @@ fu_dfu_tool_write(FuDfuTool *self, gchar **values, GError **error)
 	}
 
 	/* open file */
-	fw = fu_bytes_get_contents(values[0], error);
-	if (fw == NULL)
+	stream = fu_input_stream_from_path(values[0], error);
+	if (stream == NULL)
 		return FALSE;
 
 	/* open correct device */
@@ -681,7 +681,7 @@ fu_dfu_tool_write(FuDfuTool *self, gchar **values, GError **error)
 			 "percentage-changed",
 			 G_CALLBACK(fu_tool_action_changed_cb),
 			 self);
-	if (!fu_device_write_firmware(FU_DEVICE(device), fw, progress, flags, error))
+	if (!fu_device_write_firmware(FU_DEVICE(device), stream, progress, flags, error))
 		return FALSE;
 
 	/* do host reset */

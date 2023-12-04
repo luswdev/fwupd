@@ -215,7 +215,7 @@ fu_test_plugin_get_version(GBytes *blob_fw)
 static gboolean
 fu_test_plugin_write_firmware(FuPlugin *plugin,
 			      FuDevice *device,
-			      GBytes *blob_fw,
+			      GInputStream *stream,
 			      FuProgress *progress,
 			      FwupdInstallFlags flags,
 			      GError **error)
@@ -281,7 +281,19 @@ fu_test_plugin_write_firmware(FuPlugin *plugin,
 	} else if (requires_reboot) {
 		fu_device_add_flag(device, FWUPD_DEVICE_FLAG_NEEDS_REBOOT);
 	} else {
-		g_autofree gchar *ver = fu_test_plugin_get_version(blob_fw);
+		g_autofree gchar *ver = NULL;
+		g_autoptr(GBytes) blob_fw = NULL;
+
+		gsize streamsz = 0;
+
+		// FIXME this should not be needed
+		if (!fu_input_stream_size(stream, &streamsz, error))
+			return FALSE;
+		blob_fw = fu_bytes_get_contents_stream_full(stream, 0x0, streamsz, error);
+		// blob_fw = fu_bytes_get_contents_stream_full(stream, 0x0, G_MAXUINT32, error);
+		if (blob_fw == NULL)
+			return FALSE;
+		ver = fu_test_plugin_get_version(blob_fw);
 		fu_device_set_version_format(device, FWUPD_VERSION_FORMAT_TRIPLET);
 		if (ver != NULL) {
 			fu_device_set_version(device, ver);

@@ -706,6 +706,52 @@ fu_firmware_get_stream(FuFirmware *self, GError **error)
 }
 
 /**
+ * fu_firmware_set_stream:
+ * @self: a #FuPlugin
+ * @stream: (nullable): #GInputStream
+ * @error: (nullable): optional return location for an error
+ *
+ * Sets the input stream.
+ *
+ * Returns: %TRUE on success
+ *
+ * Since: 2.0.0
+ **/
+gboolean
+fu_firmware_set_stream(FuFirmware *self, GInputStream *stream, GError **error)
+{
+	FuFirmwarePrivate *priv = GET_PRIVATE(self);
+	g_return_val_if_fail(FU_IS_FIRMWARE(self), FALSE);
+	g_return_val_if_fail(stream == NULL || G_IS_INPUT_STREAM(stream), FALSE);
+	if (stream != NULL) {
+		if (!fu_input_stream_size(stream, &priv->streamsz, error))
+			return FALSE;
+	} else {
+		priv->streamsz = 0;
+	}
+	g_set_object(&priv->stream, stream);
+	return TRUE;
+}
+
+/**
+ * fu_firmware_get_streamsz:
+ * @self: a #FuPlugin
+ *
+ * Gets total size of the input stream which was used to parse the firmware.
+ *
+ * Returns: size in bytes
+ *
+ * Since: 1.9.11
+ **/
+gsize
+fu_firmware_get_streamsz(FuFirmware *self)
+{
+	FuFirmwarePrivate *priv = GET_PRIVATE(self);
+	g_return_val_if_fail(FU_IS_FIRMWARE(self), G_MAXSIZE);
+	return priv->streamsz;
+}
+
+/**
  * fu_firmware_get_alignment:
  * @self: a #FuFirmware
  *
@@ -891,33 +937,36 @@ fu_firmware_check_compatible(FuFirmware *self,
 }
 
 static gboolean
-fu_firmware_check_magic_for_offset(FuFirmware *self,
-				   GBytes *fw,
-				   gsize *offset,
-				   FwupdInstallFlags flags,
-				   GError **error)
+fu_firmware_validate_for_offset(FuFirmware *self,
+				GInputStream *stream,
+				gsize *offset,
+				FwupdInstallFlags flags,
+				GError **error)
 {
 	FuFirmwareClass *klass = FU_FIRMWARE_GET_CLASS(self);
+	gsize streamsz = 0;
 
 	/* not implemented */
-	if (klass->check_magic == NULL)
+	if (klass->validate == NULL)
 		return TRUE;
 
 	/* fuzzing */
 	if (!fu_firmware_has_flag(self, FU_FIRMWARE_FLAG_ALWAYS_SEARCH) &&
 	    (flags & FWUPD_INSTALL_FLAG_NO_SEARCH) > 0) {
-		if (!klass->check_magic(self, fw, *offset, error))
+		if (!klass->validate(self, stream, *offset, error))
 			return FALSE;
 		return TRUE;
 	}
 
 	/* limit the size of firmware we search */
-	if (g_bytes_get_size(fw) > FU_FIRMWARE_SEARCH_MAGIC_BUFSZ_MAX) {
-		if (!klass->check_magic(self, fw, *offset, error)) {
+	if (!fu_input_stream_size(stream, &streamsz, error))
+		return FALSE;
+	if (streamsz > FU_FIRMWARE_SEARCH_MAGIC_BUFSZ_MAX) {
+		if (!klass->validate(self, stream, *offset, error)) {
 			g_prefix_error(error,
 				       "failed to search for magic as firmware size was 0x%x and "
 				       "limit was 0x%x: ",
-				       (guint)g_bytes_get_size(fw),
+				       (guint)streamsz,
 				       (guint)FU_FIRMWARE_SEARCH_MAGIC_BUFSZ_MAX);
 			return FALSE;
 		}
@@ -925,8 +974,8 @@ fu_firmware_check_magic_for_offset(FuFirmware *self,
 	}
 
 	/* increment the offset, looking for the magic */
-	for (gsize offset_tmp = *offset; offset_tmp < g_bytes_get_size(fw); offset_tmp++) {
-		if (klass->check_magic(self, fw, offset_tmp, NULL)) {
+	for (gsize offset_tmp = *offset; offset_tmp < streamsz; offset_tmp++) {
+		if (klass->validate(self, stream, offset_tmp, NULL)) {
 			fu_firmware_set_offset(self, offset_tmp);
 			*offset = offset_tmp;
 			return TRUE;
@@ -1010,10 +1059,8 @@ fu_firmware_parse_stream(FuFirmware *self,
 	}
 
 	/* optional */
-	if (klass->validate_stream != NULL) {
-		if (!klass->validate_stream(self, stream, offset, error))
-			return FALSE;
-	}
+	if (!fu_firmware_validate_for_offset(self, stream, &offset, flags, error))
+		return FALSE;
 
 	/* save stream */
 	if (offset == 0) {
@@ -1029,17 +1076,15 @@ fu_firmware_parse_stream(FuFirmware *self,
 		fu_firmware_add_flag(self, FU_FIRMWARE_FLAG_DONE_PARSE);
 		return klass->parse_stream(self, stream, offset, flags, error);
 	}
-	fw = fu_bytes_get_contents_stream_full(stream, offset, priv->streamsz, error);
+	fw = fu_bytes_get_contents_stream_full(stream, 0x0, G_MAXUINT32, error);
 	if (fw == NULL)
 		return FALSE;
 	if (klass->tokenize != NULL) {
 		if (!klass->tokenize(self, fw, flags, error))
 			return FALSE;
 	}
-	if (!fu_firmware_check_magic_for_offset(self, fw, &offset, flags, error))
-		return FALSE;
 	if (klass->parse != NULL)
-		return klass->parse(self, fw, 0x0, flags, error);
+		return klass->parse(self, fw, offset, flags, error);
 
 	/* success */
 	return TRUE;
@@ -1109,8 +1154,11 @@ fu_firmware_parse_full(FuFirmware *self,
 		if (!klass->tokenize(self, fw, flags, error))
 			return FALSE;
 	}
-	if (!fu_firmware_check_magic_for_offset(self, fw, &offset, flags, error))
-		return FALSE;
+	if (klass->validate != NULL) {
+		g_autoptr(GInputStream) stream = g_memory_input_stream_new_from_bytes(fw);
+		if (!fu_firmware_validate_for_offset(self, stream, &offset, flags, error))
+			return FALSE;
+	}
 
 	/* always set by default */
 	if (offset == 0x0) {
@@ -2335,7 +2383,7 @@ fu_firmware_new_from_bytes(GBytes *fw)
 
 /**
  * fu_firmware_new_from_gtypes:
- * @fw: firmware blob
+ * @stream: a #GInputStream
  * @offset: start offset, useful for ignoring a bootloader
  * @flags: install flags, e.g. %FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM
  * @error: (nullable): optional return location for an error
@@ -2348,13 +2396,17 @@ fu_firmware_new_from_bytes(GBytes *fw)
  * Since: 1.5.6
  **/
 FuFirmware *
-fu_firmware_new_from_gtypes(GBytes *fw, gsize offset, FwupdInstallFlags flags, GError **error, ...)
+fu_firmware_new_from_gtypes(GInputStream *stream,
+			    gsize offset,
+			    FwupdInstallFlags flags,
+			    GError **error,
+			    ...)
 {
 	va_list args;
 	g_autoptr(GArray) gtypes = g_array_new(FALSE, FALSE, sizeof(GType));
 	g_autoptr(GError) error_all = NULL;
 
-	g_return_val_if_fail(fw != NULL, NULL);
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
 	/* create array of GTypes */
@@ -2381,7 +2433,8 @@ fu_firmware_new_from_gtypes(GBytes *fw, gsize offset, FwupdInstallFlags flags, G
 		GType gtype = g_array_index(gtypes, GType, i);
 		g_autoptr(FuFirmware) firmware = g_object_new(gtype, NULL);
 		g_autoptr(GError) error_local = NULL;
-		if (!fu_firmware_parse_full(firmware, fw, offset, flags, &error_local)) {
+		if (!fu_firmware_parse_stream(firmware, stream, offset, flags, &error_local)) {
+			g_debug("%s", error_local->message);
 			if (error_all == NULL) {
 				g_propagate_error(&error_all, g_steal_pointer(&error_local));
 			} else {

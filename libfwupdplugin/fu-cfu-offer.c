@@ -417,11 +417,11 @@ fu_cfu_offer_set_product_id(FuCfuOffer *self, guint16 product_id)
 }
 
 static gboolean
-fu_cfu_offer_parse(FuFirmware *firmware,
-		   GBytes *fw,
-		   gsize offset,
-		   FwupdInstallFlags flags,
-		   GError **error)
+fu_cfu_offer_parse_stream(FuFirmware *firmware,
+			  GInputStream *stream,
+			  gsize offset,
+			  FwupdInstallFlags flags,
+			  GError **error)
 {
 	FuCfuOffer *self = FU_CFU_OFFER(firmware);
 	FuCfuOfferPrivate *priv = GET_PRIVATE(self);
@@ -432,7 +432,7 @@ fu_cfu_offer_parse(FuFirmware *firmware,
 	g_autofree gchar *version = NULL;
 
 	/* parse */
-	st = fu_struct_cfu_offer_parse_bytes(fw, offset, error);
+	st = fu_struct_cfu_offer_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 	priv->segment_number = fu_struct_cfu_offer_get_segment_number(st);
@@ -551,7 +551,7 @@ fu_cfu_offer_class_init(FuCfuOfferClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	klass_firmware->export = fu_cfu_offer_export;
-	klass_firmware->parse = fu_cfu_offer_parse;
+	klass_firmware->parse_stream = fu_cfu_offer_parse_stream;
 	klass_firmware->write = fu_cfu_offer_write;
 	klass_firmware->build = fu_cfu_offer_build;
 }

@@ -922,13 +922,13 @@ fu_mediatek_scaler_device_write_firmware(FuDevice *device,
 
 static FuFirmware *
 fu_mediatek_scaler_device_prepare_firmware(FuDevice *device,
-					   GBytes *fw,
+					   GInputStream *stream,
 					   FwupdInstallFlags flags,
 					   GError **error)
 {
 	g_autoptr(FuFirmware) firmware = fu_mediatek_scaler_firmware_new();
 
-	if (!fu_firmware_parse(firmware, fw, flags, error))
+	if (!fu_firmware_parse_stream(firmware, stream, 0x0, flags, error))
 		return NULL;
 
 	g_info("firmware version old: %s, new: %s",

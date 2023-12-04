@@ -554,27 +554,21 @@ fu_synaptics_cape_device_setup(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_synaptics_cape_device_prepare_firmware(FuDevice *device,
-					  GBytes *fw,
+					  GInputStream *stream,
 					  FwupdInstallFlags flags,
 					  GError **error)
 {
 	FuSynapticsCapeDevice *self = FU_SYNAPTICS_CAPE_DEVICE(device);
 	GUsbDevice *usb_device = fu_usb_device_get_dev(FU_USB_DEVICE(self));
-	g_autoptr(FuFirmware) firmware = fu_synaptics_cape_hid_firmware_new();
+	gsize bufsz = 0;
 	gsize offset = 0;
-	g_autoptr(GBytes) new_fw = NULL;
+	g_autoptr(FuFirmware) firmware = fu_synaptics_cape_hid_firmware_new();
+	g_autoptr(GInputStream) stream_fw = NULL;
 
 	/* a "fw" includes two firmware data for each partition, we need to divide a 'fw' into
-	 * two equal parts.
-	 */
-	gsize bufsz = g_bytes_get_size(fw);
-
-	g_return_val_if_fail(FU_IS_SYNAPTICS_CAPE_DEVICE(self), NULL);
-	g_return_val_if_fail(usb_device != NULL, NULL);
-	g_return_val_if_fail(fw != NULL, NULL);
-	g_return_val_if_fail(firmware != NULL, NULL);
-	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
-
+	 * two equal parts */
+	if (!fu_input_stream_size(stream, &bufsz, error))
+		return NULL;
 	if ((guint32)bufsz % 4 != 0) {
 		g_set_error_literal(error,
 				    FWUPD_ERROR,
@@ -587,10 +581,8 @@ fu_synaptics_cape_device_prepare_firmware(FuDevice *device,
 	if (self->active_partition == 1)
 		offset = bufsz / 2;
 
-	new_fw = fu_bytes_new_offset(fw, offset, bufsz / 2, error);
-	if (new_fw == NULL)
-		return NULL;
-	if (!fu_firmware_parse(firmware, new_fw, flags, error))
+	stream_fw = fu_partial_input_stream_new(stream, offset, bufsz / 2);
+	if (!fu_firmware_parse_stream(firmware, stream_fw, 0x0, flags, error))
 		return NULL;
 
 	/* verify if correct device */

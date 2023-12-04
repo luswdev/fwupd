@@ -59,17 +59,17 @@ fu_efi_hard_drive_device_path_export(FuFirmware *firmware,
 }
 
 static gboolean
-fu_efi_hard_drive_device_path_parse(FuFirmware *firmware,
-				    GBytes *fw,
-				    gsize offset,
-				    FwupdInstallFlags flags,
-				    GError **error)
+fu_efi_hard_drive_device_path_parse_stream(FuFirmware *firmware,
+					   GInputStream *stream,
+					   gsize offset,
+					   FwupdInstallFlags flags,
+					   GError **error)
 {
 	FuEfiHardDriveDevicePath *self = FU_EFI_HARD_DRIVE_DEVICE_PATH(firmware);
 	g_autoptr(GByteArray) st = NULL;
 
 	/* re-parse */
-	st = fu_struct_efi_hard_drive_device_path_parse_bytes(fw, offset, error);
+	st = fu_struct_efi_hard_drive_device_path_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 	self->partition_number = fu_struct_efi_hard_drive_device_path_get_partition_number(st);
@@ -167,7 +167,7 @@ fu_efi_hard_drive_device_path_class_init(FuEfiHardDriveDevicePathClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	klass_firmware->export = fu_efi_hard_drive_device_path_export;
-	klass_firmware->parse = fu_efi_hard_drive_device_path_parse;
+	klass_firmware->parse_stream = fu_efi_hard_drive_device_path_parse_stream;
 	klass_firmware->write = fu_efi_hard_drive_device_path_write;
 	klass_firmware->build = fu_efi_hard_drive_device_path_build;
 }

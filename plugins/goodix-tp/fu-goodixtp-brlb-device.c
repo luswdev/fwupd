@@ -392,7 +392,7 @@ fu_goodixtp_brlb_device_setup(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_goodixtp_brlb_device_prepare_firmware(FuDevice *device,
-					 GBytes *fw,
+					 GInputStream *stream,
 					 FwupdInstallFlags flags,
 					 GError **error)
 {
@@ -400,7 +400,7 @@ fu_goodixtp_brlb_device_prepare_firmware(FuDevice *device,
 	g_autoptr(FuFirmware) firmware = fu_goodixtp_brlb_firmware_new();
 	if (!fu_goodixtp_brlb_firmware_parse(
 		FU_GOODIXTP_FIRMWARE(firmware),
-		fw,
+		stream,
 		fu_goodixtp_hid_device_get_sensor_id(FU_GOODIXTP_HID_DEVICE(self)),
 		error))
 		return NULL;

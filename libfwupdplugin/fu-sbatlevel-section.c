@@ -18,7 +18,7 @@ G_DEFINE_TYPE(FuSbatlevelSection, fu_sbatlevel_section, FU_TYPE_FIRMWARE);
 
 static gboolean
 fu_sbatlevel_section_add_entry(FuFirmware *firmware,
-			       GBytes *fw,
+			       GInputStream *stream,
 			       gsize offset,
 			       const gchar *entry_name,
 			       guint64 entry_idx,
@@ -26,10 +26,16 @@ fu_sbatlevel_section_add_entry(FuFirmware *firmware,
 			       GError **error)
 {
 	gsize bufsz = 0;
-	const guint8 *buf = g_bytes_get_data(fw, &bufsz);
+	const guint8 *buf;
 	gsize size = 0;
 	g_autoptr(FuFirmware) entry_fw = NULL;
 	g_autoptr(GBytes) entry_blob = NULL;
+	g_autoptr(GBytes) fw = NULL;
+
+	fw = fu_bytes_get_contents_stream_full(stream, offset, G_MAXUINT32, error);
+	if (fw == NULL)
+		return FALSE;
+	buf = g_bytes_get_data(fw, &bufsz);
 
 	/* look for the null terminator */
 	for (size = 0; ((offset + size) < bufsz); ++size) {
@@ -59,25 +65,25 @@ fu_sbatlevel_section_add_entry(FuFirmware *firmware,
 }
 
 static gboolean
-fu_sbatlevel_section_parse(FuFirmware *firmware,
-			   GBytes *fw,
-			   gsize offset,
-			   FwupdInstallFlags flags,
-			   GError **error)
+fu_sbatlevel_section_parse_stream(FuFirmware *firmware,
+				  GInputStream *stream,
+				  gsize offset,
+				  FwupdInstallFlags flags,
+				  GError **error)
 {
 	gsize header_offset = offset + FU_STRUCT_SBAT_LEVEL_SECTION_HEADER_OFFSET_PREVIOUS;
 	guint32 previous_addr;
 	guint32 latest_addr;
 	g_autoptr(GByteArray) st = NULL;
 
-	st = fu_struct_sbat_level_section_header_parse_bytes(fw, offset, error);
+	st = fu_struct_sbat_level_section_header_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 
 	previous_addr = fu_struct_sbat_level_section_header_get_previous(st);
 
 	if (!fu_sbatlevel_section_add_entry(firmware,
-					    fw,
+					    stream,
 					    header_offset + previous_addr,
 					    "previous",
 					    0,
@@ -88,7 +94,7 @@ fu_sbatlevel_section_parse(FuFirmware *firmware,
 	latest_addr = fu_struct_sbat_level_section_header_get_latest(st);
 
 	if (!fu_sbatlevel_section_add_entry(firmware,
-					    fw,
+					    stream,
 					    header_offset + latest_addr,
 					    "latest",
 					    1,
@@ -110,7 +116,7 @@ fu_sbatlevel_section_class_init(FuSbatlevelSectionClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 
-	klass_firmware->parse = fu_sbatlevel_section_parse;
+	klass_firmware->parse_stream = fu_sbatlevel_section_parse_stream;
 }
 
 FuFirmware *

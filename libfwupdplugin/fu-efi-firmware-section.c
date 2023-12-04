@@ -15,6 +15,7 @@
 #include "fu-efi-struct.h"
 #include "fu-lzma-common.h"
 #include "fu-mem.h"
+#include "fu-partial-input-stream.h"
 
 /**
  * FuEfiFirmwareSection:
@@ -49,20 +50,20 @@ fu_efi_firmware_section_export(FuFirmware *firmware, FuFirmwareExportFlags flags
 }
 
 static gboolean
-fu_efi_firmware_section_parse(FuFirmware *firmware,
-			      GBytes *fw,
-			      gsize offset,
-			      FwupdInstallFlags flags,
-			      GError **error)
+fu_efi_firmware_section_parse_stream(FuFirmware *firmware,
+				     GInputStream *stream,
+				     gsize offset,
+				     FwupdInstallFlags flags,
+				     GError **error)
 {
 	FuEfiFirmwareSection *self = FU_EFI_FIRMWARE_SECTION(firmware);
 	FuEfiFirmwareSectionPrivate *priv = GET_PRIVATE(self);
 	guint32 size;
-	g_autoptr(GBytes) blob = NULL;
 	g_autoptr(GByteArray) st = NULL;
+	g_autoptr(GInputStream) partial_stream = NULL;
 
 	/* parse */
-	st = fu_struct_efi_section_parse_bytes(fw, offset, error);
+	st = fu_struct_efi_section_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 	size = fu_struct_efi_section_get_size(st);
@@ -80,7 +81,7 @@ fu_efi_firmware_section_parse(FuFirmware *firmware,
 	if (priv->type == FU_EFI_SECTION_TYPE_GUID_DEFINED) {
 		g_autofree gchar *guid_str = NULL;
 		g_autoptr(GByteArray) st_def = NULL;
-		st_def = fu_struct_efi_section_guid_defined_parse_bytes(fw, st->len, error);
+		st_def = fu_struct_efi_section_guid_defined_parse_stream(stream, st->len, error);
 		if (st_def == NULL)
 			return FALSE;
 		guid_str = fwupd_guid_to_string(fu_struct_efi_section_guid_defined_get_name(st_def),
@@ -99,19 +100,20 @@ fu_efi_firmware_section_parse(FuFirmware *firmware,
 
 	/* create blob */
 	offset += st->len;
-	blob = fu_bytes_new_offset(fw, offset, size - offset, error);
-	if (blob == NULL) {
-		g_prefix_error(error, "cannot parse payload of size 0x%x: ", size);
-		return FALSE;
-	}
+	partial_stream = fu_partial_input_stream_new(stream, offset, size - offset);
 	fu_firmware_set_offset(firmware, offset);
 	fu_firmware_set_size(firmware, size);
-	fu_firmware_set_bytes(firmware, blob);
+	if (!fu_firmware_set_stream(firmware, partial_stream, error))
+		return FALSE;
 
 	/* nested volume */
 	if (priv->type == FU_EFI_SECTION_TYPE_VOLUME_IMAGE) {
 		g_autoptr(FuFirmware) img = fu_efi_firmware_volume_new();
-		if (!fu_firmware_parse(img, blob, flags | FWUPD_INSTALL_FLAG_NO_SEARCH, error)) {
+		if (!fu_firmware_parse_stream(img,
+					      partial_stream,
+					      0x0,
+					      flags | FWUPD_INSTALL_FLAG_NO_SEARCH,
+					      error)) {
 			g_prefix_error(error, "failed to parse nested volume: ");
 			return FALSE;
 		}
@@ -121,15 +123,21 @@ fu_efi_firmware_section_parse(FuFirmware *firmware,
 	} else if (priv->type == FU_EFI_SECTION_TYPE_GUID_DEFINED &&
 		   g_strcmp0(fu_firmware_get_id(firmware), FU_EFI_FIRMWARE_SECTION_LZMA_COMPRESS) ==
 		       0) {
+		g_autoptr(GBytes) blob = NULL;
 		g_autoptr(GBytes) blob_uncomp = NULL;
+		g_autoptr(GInputStream) stream_uncomp = NULL;
 
 		/* parse all sections */
+		blob = fu_bytes_get_contents_stream_full(partial_stream, 0x0, G_MAXUINT32, error);
+		if (blob == NULL)
+			return FALSE;
 		blob_uncomp = fu_lzma_decompress_bytes(blob, error);
 		if (blob_uncomp == NULL) {
 			g_prefix_error(error, "failed to decompress lzma section: ");
 			return FALSE;
 		}
-		if (!fu_efi_firmware_parse_sections(firmware, blob_uncomp, flags, error)) {
+		stream_uncomp = g_memory_input_stream_new_from_bytes(blob_uncomp);
+		if (!fu_efi_firmware_parse_sections(firmware, stream_uncomp, flags, error)) {
 			g_prefix_error(error, "failed to parse sections: ");
 			return FALSE;
 		}
@@ -202,7 +210,7 @@ static void
 fu_efi_firmware_section_class_init(FuEfiFirmwareSectionClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->parse = fu_efi_firmware_section_parse;
+	klass_firmware->parse_stream = fu_efi_firmware_section_parse_stream;
 	klass_firmware->write = fu_efi_firmware_section_write;
 	klass_firmware->build = fu_efi_firmware_section_build;
 	klass_firmware->export = fu_efi_firmware_section_export;

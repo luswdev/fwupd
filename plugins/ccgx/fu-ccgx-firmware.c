@@ -346,16 +346,20 @@ fu_ccgx_firmware_tokenize_cb(GString *token, guint token_idx, gpointer user_data
 }
 
 static gboolean
-fu_ccgx_firmware_parse(FuFirmware *firmware,
-		       GBytes *fw,
-		       gsize offset,
-		       FwupdInstallFlags flags,
-		       GError **error)
+fu_ccgx_firmware_parse_stream(FuFirmware *firmware,
+			      GInputStream *stream,
+			      gsize offset,
+			      FwupdInstallFlags flags,
+			      GError **error)
 {
 	FuCcgxFirmware *self = FU_CCGX_FIRMWARE(firmware);
 	FuCcgxFirmwareTokenHelper helper = {.self = self, .flags = flags};
+	g_autoptr(GBytes) fw = NULL;
 
 	/* tokenize */
+	fw = fu_bytes_get_contents_stream_full(stream, 0x0, G_MAXUINT32, error);
+	if (fw == NULL)
+		return FALSE;
 	if (!fu_strsplit_full(g_bytes_get_data(fw, NULL),
 			      g_bytes_get_size(fw),
 			      "\n",
@@ -520,7 +524,7 @@ fu_ccgx_firmware_class_init(FuCcgxFirmwareClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	object_class->finalize = fu_ccgx_firmware_finalize;
-	klass_firmware->parse = fu_ccgx_firmware_parse;
+	klass_firmware->parse_stream = fu_ccgx_firmware_parse_stream;
 	klass_firmware->write = fu_ccgx_firmware_write;
 	klass_firmware->build = fu_ccgx_firmware_build;
 	klass_firmware->export = fu_ccgx_firmware_export;

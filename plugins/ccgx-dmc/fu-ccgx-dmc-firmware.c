@@ -259,9 +259,12 @@ fu_ccgx_dmc_firmware_parse_image(FuFirmware *firmware,
 }
 
 static gboolean
-fu_ccgx_dmc_firmware_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_ccgx_dmc_firmware_validate(FuFirmware *firmware,
+			      GInputStream *stream,
+			      gsize offset,
+			      GError **error)
 {
-	return fu_struct_ccgx_dmc_fwct_info_validate_bytes(fw, offset, error);
+	return fu_struct_ccgx_dmc_fwct_info_validate_stream(stream, offset, error);
 }
 
 static gboolean
@@ -465,7 +468,7 @@ fu_ccgx_dmc_firmware_class_init(FuCcgxDmcFirmwareClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	object_class->finalize = fu_ccgx_dmc_firmware_finalize;
-	klass_firmware->check_magic = fu_ccgx_dmc_firmware_check_magic;
+	klass_firmware->validate = fu_ccgx_dmc_firmware_validate;
 	klass_firmware->parse = fu_ccgx_dmc_firmware_parse;
 	klass_firmware->write = fu_ccgx_dmc_firmware_write;
 	klass_firmware->export = fu_ccgx_dmc_firmware_export;

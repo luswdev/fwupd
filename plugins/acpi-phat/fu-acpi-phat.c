@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "fu-acpi-phat-health-record.h"
+#include "fu-acpi-phat-struct.h"
 #include "fu-acpi-phat-version-record.h"
 #include "fu-acpi-phat.h"
 
@@ -96,17 +97,9 @@ fu_acpi_phat_set_oem_id(FuAcpiPhat *self, const gchar *oem_id)
 }
 
 static gboolean
-fu_acpi_phat_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_acpi_phat_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
-	const guint8 magic[4] = "PHAT";
-	return fu_memcmp_safe(g_bytes_get_data(fw, NULL),
-			      g_bytes_get_size(fw),
-			      offset,
-			      magic,
-			      sizeof(magic),
-			      0x0,
-			      sizeof(magic),
-			      error);
+	return fu_struct_acpi_phat_hdr_validate_stream(stream, offset, error);
 }
 
 static gboolean
@@ -336,7 +329,7 @@ fu_acpi_phat_class_init(FuAcpiPhatClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	object_class->finalize = fu_acpi_phat_finalize;
-	klass_firmware->check_magic = fu_acpi_phat_check_magic;
+	klass_firmware->validate = fu_acpi_phat_validate;
 	klass_firmware->parse = fu_acpi_phat_parse;
 	klass_firmware->write = fu_acpi_phat_write;
 	klass_firmware->export = fu_acpi_phat_export;

@@ -8,6 +8,7 @@
 
 #include "fu-elantp-common.h"
 #include "fu-elantp-haptic-firmware.h"
+#include "fu-elantp-struct.h"
 
 struct _FuElantpHapticFirmware {
 	FuFirmwareClass parent_instance;
@@ -15,8 +16,6 @@ struct _FuElantpHapticFirmware {
 };
 
 G_DEFINE_TYPE(FuElantpHapticFirmware, fu_elantp_haptic_firmware, FU_TYPE_FIRMWARE)
-
-const guint8 elantp_haptic_signature_ictype02[] = {0xFF, 0x40, 0xA2, 0x5B};
 
 guint16
 fu_elantp_haptic_firmware_get_driver_ic(FuElantpHapticFirmware *self)
@@ -35,30 +34,12 @@ fu_elantp_haptic_firmware_export(FuFirmware *firmware,
 }
 
 static gboolean
-fu_elantp_haptic_firmware_check_magic(FuFirmware *firmware,
-				      GBytes *fw,
-				      gsize offset,
-				      GError **error)
+fu_elantp_haptic_firmware_validate(FuFirmware *firmware,
+				   GInputStream *stream,
+				   gsize offset,
+				   GError **error)
 {
-	gsize bufsz = g_bytes_get_size(fw);
-	const guint8 *buf = g_bytes_get_data(fw, NULL);
-
-	for (gsize i = 0; i < sizeof(elantp_haptic_signature_ictype02); i++) {
-		guint8 tmp = 0x0;
-		if (!fu_memread_uint8_safe(buf, bufsz, i + offset, &tmp, error))
-			return FALSE;
-		if (tmp != elantp_haptic_signature_ictype02[i]) {
-			g_set_error(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_INVALID_FILE,
-				    "signature[%u] invalid: got 0x%2x, expected 0x%02x",
-				    (guint)i,
-				    tmp,
-				    elantp_haptic_signature_ictype02[i]);
-			return FALSE;
-		}
-	}
-	return TRUE;
+	return fu_struct_elantp_haptic_firmware_hdr_validate_stream(stream, offset, error);
 }
 
 static gboolean
@@ -117,7 +98,7 @@ static void
 fu_elantp_haptic_firmware_class_init(FuElantpHapticFirmwareClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->check_magic = fu_elantp_haptic_firmware_check_magic;
+	klass_firmware->validate = fu_elantp_haptic_firmware_validate;
 	klass_firmware->parse = fu_elantp_haptic_firmware_parse;
 	klass_firmware->export = fu_elantp_haptic_firmware_export;
 }

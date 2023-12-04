@@ -182,13 +182,13 @@ fu_edid_strsafe(const guint8 *buf, gsize bufsz)
 }
 
 static gboolean
-fu_edid_parse_descriptor(FuEdid *self, GBytes *fw, gsize offset, GError **error)
+fu_edid_parse_descriptor(FuEdid *self, GInputStream *stream, gsize offset, GError **error)
 {
 	gsize buf2sz = 0;
 	const guint8 *buf2;
 	g_autoptr(GByteArray) st = NULL;
 
-	st = fu_struct_edid_descriptor_parse_bytes(fw, offset, error);
+	st = fu_struct_edid_descriptor_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 
@@ -216,11 +216,11 @@ fu_edid_parse_descriptor(FuEdid *self, GBytes *fw, gsize offset, GError **error)
 }
 
 static gboolean
-fu_edid_parse(FuFirmware *firmware,
-	      GBytes *fw,
-	      gsize offset,
-	      FwupdInstallFlags flags,
-	      GError **error)
+fu_edid_parse_stream(FuFirmware *firmware,
+		     GInputStream *stream,
+		     gsize offset,
+		     FwupdInstallFlags flags,
+		     GError **error)
 {
 	FuEdid *self = FU_EDID(firmware);
 	const guint8 *manu_id;
@@ -228,7 +228,7 @@ fu_edid_parse(FuFirmware *firmware,
 	g_autoptr(GByteArray) st = NULL;
 
 	/* parse header */
-	st = fu_struct_edid_parse_bytes(fw, offset, error);
+	st = fu_struct_edid_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 
@@ -254,7 +254,7 @@ fu_edid_parse(FuFirmware *firmware,
 	/* parse 4x18 byte sections */
 	offset += FU_STRUCT_EDID_OFFSET_DATA_BLOCKS;
 	for (guint i = 0; i < 4; i++) {
-		if (!fu_edid_parse_descriptor(self, fw, offset, error))
+		if (!fu_edid_parse_descriptor(self, stream, offset, error))
 			return FALSE;
 		offset += FU_STRUCT_EDID_DESCRIPTOR_SIZE;
 	}
@@ -415,7 +415,7 @@ fu_edid_class_init(FuEdidClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	object_class->finalize = fu_edid_finalize;
-	klass_firmware->parse = fu_edid_parse;
+	klass_firmware->parse_stream = fu_edid_parse_stream;
 	klass_firmware->write = fu_edid_write;
 	klass_firmware->build = fu_edid_build;
 	klass_firmware->export = fu_edid_export;

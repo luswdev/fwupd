@@ -72,11 +72,11 @@ fu_cros_ec_firmware_get_needed_sections(FuCrosEcFirmware *self, GError **error)
 }
 
 static gboolean
-fu_cros_ec_firmware_parse(FuFirmware *firmware,
-			  GBytes *fw,
-			  gsize offset,
-			  FwupdInstallFlags flags,
-			  GError **error)
+fu_cros_ec_firmware_parse_stream(FuFirmware *firmware,
+				 GInputStream *stream,
+				 gsize offset,
+				 FwupdInstallFlags flags,
+				 GError **error)
 {
 	FuCrosEcFirmware *self = FU_CROS_EC_FIRMWARE(firmware);
 	FuFirmware *fmap_firmware = FU_FIRMWARE(firmware);
@@ -193,7 +193,7 @@ fu_cros_ec_firmware_class_init(FuCrosEcFirmwareClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFmapFirmwareClass *klass_firmware = FU_FMAP_FIRMWARE_CLASS(klass);
-	klass_firmware->parse = fu_cros_ec_firmware_parse;
+	klass_firmware->parse_stream = fu_cros_ec_firmware_parse_stream;
 	object_class->finalize = fu_cros_ec_firmware_finalize;
 }
 

@@ -122,7 +122,7 @@ fu_wac_module_bluetooth_id9_write_blocks(FuWacModule *self,
 
 static FuFirmware *
 fu_wac_module_bluetooth_id9_prepare_firmware(FuDevice *device,
-					     GBytes *fw,
+					     GInputStream *stream,
 					     FwupdInstallFlags flags,
 					     GError **error)
 {
@@ -130,11 +130,17 @@ fu_wac_module_bluetooth_id9_prepare_firmware(FuDevice *device,
 	gsize blob_len = 0;
 	guint16 loader_len = 0;
 	gsize payload_len = 0;
+	g_autoptr(GBytes) fw = NULL;
 	g_autoptr(GBytes) loader_bytes = NULL;
 	g_autoptr(GBytes) payload_bytes = NULL;
 	g_autoptr(FuFirmware) firmware = fu_firmware_new();
 	g_autoptr(FuFirmware) loader_fw = NULL;
 	g_autoptr(FuFirmware) payload_fw = NULL;
+
+	/* convert to blob */
+	fw = fu_bytes_get_contents_stream_full(stream, 0x0, G_MAXUINT32, error);
+	if (fw == NULL)
+		return NULL;
 
 	/* The firmware file is formatted as a 2 byte "length" field
 	 * followed by <length> bytes of loader code. The remainder

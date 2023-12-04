@@ -516,15 +516,14 @@ fu_rts54hub_device_write_firmware(FuDevice *device,
 
 static FuFirmware *
 fu_rts54hub_device_prepare_firmware(FuDevice *device,
-				    GBytes *fw,
+				    GInputStream *stream,
 				    FwupdInstallFlags flags,
 				    GError **error)
 {
-	gsize bufsz = 0;
 	guint8 tmp = 0;
-	const guint8 *buf = g_bytes_get_data(fw, &bufsz);
+	g_autoptr(FuFirmware) firmware = fu_firmware_new();
 
-	if (!fu_memread_uint8_safe(buf, bufsz, 0x7ef3, &tmp, error))
+	if (!fu_input_stream_read_u8(stream, 0x7EF3, &tmp, error))
 		return NULL;
 	if ((tmp & 0xf0) != 0x80) {
 		g_set_error_literal(error,
@@ -533,7 +532,9 @@ fu_rts54hub_device_prepare_firmware(FuDevice *device,
 				    "firmware needs to be dual bank");
 		return NULL;
 	}
-	return fu_firmware_new_from_bytes(fw);
+	if (!fu_firmware_parse_stream(firmware, stream, 0x0, flags, error))
+		return NULL;
+	return g_steal_pointer(&firmware);
 }
 
 static void

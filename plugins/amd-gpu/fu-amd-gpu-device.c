@@ -141,7 +141,7 @@ fu_amd_gpu_device_setup(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_amd_gpu_device_prepare_firmware(FuDevice *device,
-				   GBytes *fw,
+				   GInputStream *stream,
 				   FwupdInstallFlags flags,
 				   GError **error)
 {
@@ -152,7 +152,7 @@ fu_amd_gpu_device_prepare_firmware(FuDevice *device,
 	g_autoptr(FuFirmware) csm = NULL;
 	const gchar *fw_pn;
 
-	if (!fu_firmware_parse(firmware, fw, flags, error))
+	if (!fu_firmware_parse_stream(firmware, stream, 0x0, flags, error))
 		return NULL;
 
 	/* we will always flash the contents of partition A */

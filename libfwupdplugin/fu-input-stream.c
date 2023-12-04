@@ -93,6 +93,206 @@ fu_input_stream_read_safe(GInputStream *stream,
 }
 
 /**
+ * fu_input_stream_read_u8:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @value: (out) (nullable): the parsed value
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a value from a stream using a specified endian in a safe way.
+ *
+ * Returns: %TRUE if @value was set, %FALSE otherwise
+ *
+ * Since: 2.0.0
+ **/
+gboolean
+fu_input_stream_read_u8(GInputStream *stream, gsize offset, guint8 *value, GError **error)
+{
+	guint8 buf = 0;
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	if (!fu_input_stream_read_safe(stream, &buf, sizeof(buf), 0x0, offset, sizeof(buf), error))
+		return FALSE;
+	if (value != NULL)
+		*value = buf;
+	return TRUE;
+}
+
+/**
+ * fu_input_stream_read_u16:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @value: (out) (nullable): the parsed value
+ * @endian: an endian type, e.g. %G_LITTLE_ENDIAN
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a value from a stream using a specified endian in a safe way.
+ *
+ * Returns: %TRUE if @value was set, %FALSE otherwise
+ *
+ * Since: 2.0.0
+ **/
+gboolean
+fu_input_stream_read_u16(GInputStream *stream,
+			 gsize offset,
+			 guint16 *value,
+			 FuEndianType endian,
+			 GError **error)
+{
+	guint8 buf[2] = {0};
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	if (!fu_input_stream_read_safe(stream, buf, sizeof(buf), 0x0, offset, sizeof(buf), error))
+		return FALSE;
+	if (value != NULL)
+		*value = fu_memread_uint16(buf, endian);
+	return TRUE;
+}
+
+/**
+ * fu_input_stream_read_u24:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @value: (out) (nullable): the parsed value
+ * @endian: an endian type, e.g. %G_LITTLE_ENDIAN
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a value from a stream using a specified endian in a safe way.
+ *
+ * Returns: %TRUE if @value was set, %FALSE otherwise
+ *
+ * Since: 2.0.0
+ **/
+gboolean
+fu_input_stream_read_u24(GInputStream *stream,
+			 gsize offset,
+			 guint32 *value,
+			 FuEndianType endian,
+			 GError **error)
+{
+	guint8 buf[3] = {0};
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	if (!fu_input_stream_read_safe(stream, buf, sizeof(buf), 0x0, offset, sizeof(buf), error))
+		return FALSE;
+	if (value != NULL)
+		*value = fu_memread_uint24(buf, endian);
+	return TRUE;
+}
+
+/**
+ * fu_input_stream_read_u32:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @value: (out) (nullable): the parsed value
+ * @endian: an endian type, e.g. %G_LITTLE_ENDIAN
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a value from a stream using a specified endian in a safe way.
+ *
+ * Returns: %TRUE if @value was set, %FALSE otherwise
+ *
+ * Since: 2.0.0
+ **/
+gboolean
+fu_input_stream_read_u32(GInputStream *stream,
+			 gsize offset,
+			 guint32 *value,
+			 FuEndianType endian,
+			 GError **error)
+{
+	guint8 buf[4] = {0};
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	if (!fu_input_stream_read_safe(stream, buf, sizeof(buf), 0x0, offset, sizeof(buf), error))
+		return FALSE;
+	if (value != NULL)
+		*value = fu_memread_uint32(buf, endian);
+	return TRUE;
+}
+
+/**
+ * fu_input_stream_read_u64:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @value: (out) (nullable): the parsed value
+ * @endian: an endian type, e.g. %G_LITTLE_ENDIAN
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a value from a stream using a specified endian in a safe way.
+ *
+ * Returns: %TRUE if @value was set, %FALSE otherwise
+ *
+ * Since: 2.0.0
+ **/
+gboolean
+fu_input_stream_read_u64(GInputStream *stream,
+			 gsize offset,
+			 guint64 *value,
+			 FuEndianType endian,
+			 GError **error)
+{
+	guint8 buf[8] = {0};
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	if (!fu_input_stream_read_safe(stream, buf, sizeof(buf), 0x0, offset, sizeof(buf), error))
+		return FALSE;
+	if (value != NULL)
+		*value = fu_memread_uint64(buf, endian);
+	return TRUE;
+}
+
+/**
+ * fu_input_stream_read_buf:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @length: number of bytes to read
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a byte array from a stream in a safe way.
+ *
+ * Returns: (transfer full): buffer
+ *
+ * Since: 2.0.0
+ **/
+GByteArray *
+fu_input_stream_read_buf(GInputStream *stream, gsize offset, gsize length, GError **error)
+{
+	g_autoptr(GByteArray) buf = g_byte_array_sized_new(length);
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), NULL);
+	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+	g_byte_array_set_size(buf, length);
+	if (!fu_input_stream_read_safe(stream, buf->data, buf->len, 0x0, offset, buf->len, error))
+		return NULL;
+	return g_steal_pointer(&buf);
+}
+
+/**
+ * fu_input_stream_read_bytes:
+ * @stream: a #GInputStream
+ * @offset: offset in bytes into @buf to copy from
+ * @length: number of bytes to read
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a byte array from a stream in a safe way.
+ *
+ * Returns: (transfer full): buffer
+ *
+ * Since: 2.0.0
+ **/
+GBytes *
+fu_input_stream_read_bytes(GInputStream *stream, gsize offset, gsize length, GError **error)
+{
+	g_autoptr(GByteArray) buf = NULL;
+	g_return_val_if_fail(G_IS_INPUT_STREAM(stream), NULL);
+	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+	buf = fu_input_stream_read_buf(stream, offset, length, error);
+	if (buf == NULL)
+		return NULL;
+	return g_byte_array_free_to_bytes(g_steal_pointer(&buf)); /* nocheck */
+}
+
+/**
  * fu_input_stream_size:
  * @stream: a #GInputStream
  * @val: (out): size in bytes

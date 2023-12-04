@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "fu-wac-firmware.h"
+#include "fu-wac-struct.h"
 
 struct _FuWacFirmware {
 	FuFirmware parent_instance;
@@ -257,17 +258,9 @@ fu_wac_firmware_tokenize_cb(GString *token, guint token_idx, gpointer user_data,
 }
 
 static gboolean
-fu_wac_firmware_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_wac_firmware_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
-	guint8 magic[5] = "WACOM";
-	return fu_memcmp_safe(g_bytes_get_data(fw, NULL),
-			      g_bytes_get_size(fw),
-			      offset,
-			      magic,
-			      sizeof(magic),
-			      0x0,
-			      sizeof(magic),
-			      error);
+	return fu_struct_wac_firmware_hdr_validate_stream(stream, offset, error);
 }
 
 static gboolean
@@ -389,7 +382,7 @@ static void
 fu_wac_firmware_class_init(FuWacFirmwareClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->check_magic = fu_wac_firmware_check_magic;
+	klass_firmware->validate = fu_wac_firmware_validate;
 	klass_firmware->parse = fu_wac_firmware_parse;
 	klass_firmware->write = fu_wac_firmware_write;
 }

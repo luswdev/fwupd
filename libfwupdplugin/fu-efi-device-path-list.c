@@ -13,6 +13,7 @@
 #include "fu-efi-file-path-device-path.h"
 #include "fu-efi-hard-drive-device-path.h"
 #include "fu-efi-struct.h"
+#include "fu-input-stream.h"
 
 struct _FuEfiDevicePathList {
 	FuFirmware parent_instance;
@@ -23,18 +24,21 @@ G_DEFINE_TYPE(FuEfiDevicePathList, fu_efi_device_path_list, FU_TYPE_FIRMWARE)
 #define FU_EFI_DEVICE_PATH_LIST_IMAGES_MAX 1000u
 
 static gboolean
-fu_efi_device_path_list_parse(FuFirmware *firmware,
-			      GBytes *fw,
-			      gsize offset,
-			      FwupdInstallFlags flags,
-			      GError **error)
+fu_efi_device_path_list_parse_stream(FuFirmware *firmware,
+				     GInputStream *stream,
+				     gsize offset,
+				     FwupdInstallFlags flags,
+				     GError **error)
 {
-	while (offset < g_bytes_get_size(fw)) {
+	gsize streamsz = 0;
+	if (!fu_input_stream_size(stream, &streamsz, error))
+		return FALSE;
+	while (offset < streamsz) {
 		g_autoptr(FuEfiDevicePath) efi_dp = NULL;
 		g_autoptr(GByteArray) st_dp = NULL;
 
 		/* parse the header so we can work out what GType to create */
-		st_dp = fu_struct_efi_device_path_parse_bytes(fw, offset, error);
+		st_dp = fu_struct_efi_device_path_parse_stream(stream, offset, error);
 		if (st_dp == NULL)
 			return FALSE;
 		if (fu_struct_efi_device_path_get_type(st_dp) == FU_EFI_DEVICE_PATH_TYPE_END)
@@ -52,7 +56,7 @@ fu_efi_device_path_list_parse(FuFirmware *firmware,
 			efi_dp = fu_efi_device_path_new();
 		}
 		fu_firmware_set_offset(FU_FIRMWARE(efi_dp), offset);
-		if (!fu_firmware_parse_full(FU_FIRMWARE(efi_dp), fw, offset, flags, error))
+		if (!fu_firmware_parse_stream(FU_FIRMWARE(efi_dp), stream, offset, flags, error))
 			return FALSE;
 		if (!fu_firmware_add_image_full(firmware, FU_FIRMWARE(efi_dp), error))
 			return FALSE;
@@ -93,7 +97,7 @@ static void
 fu_efi_device_path_list_class_init(FuEfiDevicePathListClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->parse = fu_efi_device_path_list_parse;
+	klass_firmware->parse_stream = fu_efi_device_path_list_parse_stream;
 	klass_firmware->write = fu_efi_device_path_list_write;
 }
 

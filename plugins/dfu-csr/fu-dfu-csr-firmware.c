@@ -26,27 +26,29 @@ fu_dfu_csr_firmware_export(FuFirmware *firmware, FuFirmwareExportFlags flags, Xb
 }
 
 static gboolean
-fu_dfu_csr_firmware_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_dfu_csr_firmware_validate(FuFirmware *firmware,
+			     GInputStream *stream,
+			     gsize offset,
+			     GError **error)
 {
-	return fu_struct_dfu_csr_file_validate_bytes(fw, offset, error);
+	return fu_struct_dfu_csr_file_validate_stream(stream, offset, error);
 }
 
 static gboolean
-fu_dfu_csr_firmware_parse(FuFirmware *firmware,
-			  GBytes *fw,
-			  gsize offset,
-			  FwupdInstallFlags flags,
-			  GError **error)
+fu_dfu_csr_firmware_parse_stream(FuFirmware *firmware,
+				 GInputStream *stream,
+				 gsize offset,
+				 FwupdInstallFlags flags,
+				 GError **error)
 {
 	FuDfuCsrFirmware *self = FU_DFU_CSR_FIRMWARE(firmware);
 	g_autoptr(GByteArray) st_hdr = NULL;
 
 	/* parse file header */
-	st_hdr = fu_struct_dfu_csr_file_parse_bytes(fw, offset, error);
+	st_hdr = fu_struct_dfu_csr_file_parse_stream(stream, offset, error);
 	if (st_hdr == NULL)
 		return FALSE;
 	self->total_sz = fu_struct_dfu_csr_file_get_file_len(st_hdr);
-	fu_firmware_set_bytes(firmware, fw);
 	return TRUE;
 }
 
@@ -67,8 +69,8 @@ static void
 fu_dfu_csr_firmware_class_init(FuDfuCsrFirmwareClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->check_magic = fu_dfu_csr_firmware_check_magic;
-	klass_firmware->parse = fu_dfu_csr_firmware_parse;
+	klass_firmware->validate = fu_dfu_csr_firmware_validate;
+	klass_firmware->parse_stream = fu_dfu_csr_firmware_parse_stream;
 	klass_firmware->export = fu_dfu_csr_firmware_export;
 }
 

@@ -12,8 +12,10 @@
 #include "fu-bytes.h"
 #include "fu-common.h"
 #include "fu-coswid-firmware.h"
+#include "fu-input-stream.h"
 #include "fu-lzma-common.h"
 #include "fu-mem.h"
+#include "fu-partial-input-stream.h"
 #include "fu-string.h"
 #include "fu-uswid-firmware.h"
 #include "fu-uswid-struct.h"
@@ -51,17 +53,17 @@ fu_uswid_firmware_export(FuFirmware *firmware, FuFirmwareExportFlags flags, XbBu
 }
 
 static gboolean
-fu_uswid_firmware_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_uswid_firmware_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
-	return fu_struct_uswid_validate_bytes(fw, offset, error);
+	return fu_struct_uswid_validate_stream(stream, offset, error);
 }
 
 static gboolean
-fu_uswid_firmware_parse(FuFirmware *firmware,
-			GBytes *fw,
-			gsize offset,
-			FwupdInstallFlags flags,
-			GError **error)
+fu_uswid_firmware_parse_stream(FuFirmware *firmware,
+			       GInputStream *stream,
+			       gsize offset,
+			       FwupdInstallFlags flags,
+			       GError **error)
 {
 	FuUswidFirmware *self = FU_USWID_FIRMWARE(firmware);
 	FuUswidFirmwarePrivate *priv = GET_PRIVATE(self);
@@ -71,7 +73,7 @@ fu_uswid_firmware_parse(FuFirmware *firmware,
 	g_autoptr(GBytes) payload = NULL;
 
 	/* unpack */
-	st = fu_struct_uswid_parse_bytes(fw, offset, error);
+	st = fu_struct_uswid_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 
@@ -114,32 +116,25 @@ fu_uswid_firmware_parse(FuFirmware *firmware,
 
 	/* zlib stream */
 	if (priv->compression == FU_USWID_PAYLOAD_COMPRESSION_ZLIB) {
-		g_autoptr(GBytes) payload_tmp = NULL;
 		g_autoptr(GConverter) conv = NULL;
 		g_autoptr(GInputStream) istream1 = NULL;
 		g_autoptr(GInputStream) istream2 = NULL;
-
-		payload_tmp = fu_bytes_new_offset(fw, offset + hdrsz, payloadsz, error);
-		if (payload_tmp == NULL)
-			return FALSE;
-		istream1 = g_memory_input_stream_new_from_bytes(payload_tmp);
 		conv = G_CONVERTER(g_zlib_decompressor_new(G_ZLIB_COMPRESSOR_FORMAT_ZLIB));
+		istream1 = fu_partial_input_stream_new(stream, offset + hdrsz, payloadsz);
 		istream2 = g_converter_input_stream_new(istream1, conv);
 		payload = fu_bytes_get_contents_stream(istream2, G_MAXSIZE, error);
 		if (payload == NULL)
 			return FALSE;
-		payloadsz = g_bytes_get_size(payload);
 	} else if (priv->compression == FU_USWID_PAYLOAD_COMPRESSION_LZMA) {
 		g_autoptr(GBytes) payload_tmp = NULL;
-		payload_tmp = fu_bytes_new_offset(fw, offset + hdrsz, payloadsz, error);
+		payload_tmp = fu_input_stream_read_bytes(stream, offset + hdrsz, payloadsz, error);
 		if (payload_tmp == NULL)
 			return FALSE;
 		payload = fu_lzma_decompress_bytes(payload_tmp, error);
 		if (payload == NULL)
 			return FALSE;
-		payloadsz = g_bytes_get_size(payload);
 	} else if (priv->compression == FU_USWID_PAYLOAD_COMPRESSION_NONE) {
-		payload = fu_bytes_new_offset(fw, offset + hdrsz, payloadsz, error);
+		payload = fu_input_stream_read_bytes(stream, offset + hdrsz, payloadsz, error);
 		if (payload == NULL)
 			return FALSE;
 	} else {
@@ -152,6 +147,7 @@ fu_uswid_firmware_parse(FuFirmware *firmware,
 	}
 
 	/* payload */
+	payloadsz = g_bytes_get_size(payload);
 	for (gsize offset_tmp = 0; offset_tmp < payloadsz;) {
 		g_autoptr(FuFirmware) firmware_coswid = fu_coswid_firmware_new();
 		g_autoptr(GBytes) fw2 = NULL;
@@ -303,8 +299,8 @@ static void
 fu_uswid_firmware_class_init(FuUswidFirmwareClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->check_magic = fu_uswid_firmware_check_magic;
-	klass_firmware->parse = fu_uswid_firmware_parse;
+	klass_firmware->validate = fu_uswid_firmware_validate;
+	klass_firmware->parse_stream = fu_uswid_firmware_parse_stream;
 	klass_firmware->write = fu_uswid_firmware_write;
 	klass_firmware->build = fu_uswid_firmware_build;
 	klass_firmware->export = fu_uswid_firmware_export;

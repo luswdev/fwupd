@@ -13,6 +13,8 @@
 #include "fu-efi-firmware-file.h"
 #include "fu-efi-firmware-section.h"
 #include "fu-efi-struct.h"
+#include "fu-input-stream.h"
+#include "fu-partial-input-stream.h"
 #include "fu-sum.h"
 
 /**
@@ -68,21 +70,21 @@ fu_efi_firmware_file_hdr_checksum8(GBytes *blob)
 }
 
 static gboolean
-fu_efi_firmware_file_parse(FuFirmware *firmware,
-			   GBytes *fw,
-			   gsize offset,
-			   FwupdInstallFlags flags,
-			   GError **error)
+fu_efi_firmware_file_parse_stream(FuFirmware *firmware,
+				  GInputStream *stream,
+				  gsize offset,
+				  FwupdInstallFlags flags,
+				  GError **error)
 {
 	FuEfiFirmwareFile *self = FU_EFI_FIRMWARE_FILE(firmware);
 	FuEfiFirmwareFilePrivate *priv = GET_PRIVATE(self);
 	guint32 size = 0x0;
 	g_autofree gchar *guid_str = NULL;
 	g_autoptr(GByteArray) st = NULL;
-	g_autoptr(GBytes) blob = NULL;
+	g_autoptr(GInputStream) partial_stream = NULL;
 
 	/* parse */
-	st = fu_struct_efi_file_parse_bytes(fw, offset, error);
+	st = fu_struct_efi_file_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 	priv->type = fu_struct_efi_file_get_type(st);
@@ -105,7 +107,7 @@ fu_efi_firmware_file_parse(FuFirmware *firmware,
 		guint8 hdr_checksum_verify;
 		g_autoptr(GBytes) hdr_blob = NULL;
 
-		hdr_blob = fu_bytes_new_offset(fw, 0x0, st->len, error);
+		hdr_blob = fu_input_stream_read_bytes(stream, 0x0, st->len, error);
 		if (hdr_blob == NULL)
 			return FALSE;
 		hdr_checksum_verify = fu_efi_firmware_file_hdr_checksum8(hdr_blob);
@@ -121,26 +123,29 @@ fu_efi_firmware_file_parse(FuFirmware *firmware,
 	}
 
 	/* add simple blob */
-	blob = fu_bytes_new_offset(fw, st->len, size - st->len, error);
-	if (blob == NULL) {
-		g_prefix_error(error, "failed to add payload: ");
-		return FALSE;
-	}
+	partial_stream = fu_partial_input_stream_new(stream, st->len, size - st->len);
 
 	/* add fv-image */
 	if (priv->type == FU_EFI_FILE_TYPE_FIRMWARE_VOLUME_IMAGE) {
-		if (!fu_efi_firmware_parse_sections(firmware, blob, flags, error)) {
+		if (!fu_efi_firmware_parse_sections(firmware, partial_stream, flags, error)) {
 			g_prefix_error(error, "failed to add firmware image: ");
 			return FALSE;
 		}
 	} else {
-		fu_firmware_set_bytes(firmware, blob);
+		if (!fu_firmware_set_stream(firmware, partial_stream, error))
+			return FALSE;
 	}
 
 	/* verify data checksum */
 	if ((priv->attrib & FU_EFI_FILE_ATTRIB_CHECKSUM) > 0 &&
 	    (flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
-		guint8 data_checksum_verify = 0x100 - fu_sum8_bytes(blob);
+		guint8 data_checksum_verify;
+		g_autoptr(GBytes) blob = NULL;
+
+		blob = fu_bytes_get_contents_stream_full(partial_stream, 0x0, G_MAXUINT32, error);
+		if (blob == NULL)
+			return FALSE;
+		data_checksum_verify = 0x100 - fu_sum8_bytes(blob);
 		if (data_checksum_verify != fu_struct_efi_file_get_data_checksum(st)) {
 			g_set_error(error,
 				    FWUPD_ERROR,
@@ -274,7 +279,7 @@ static void
 fu_efi_firmware_file_class_init(FuEfiFirmwareFileClass *klass)
 {
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
-	klass_firmware->parse = fu_efi_firmware_file_parse;
+	klass_firmware->parse_stream = fu_efi_firmware_file_parse_stream;
 	klass_firmware->write = fu_efi_firmware_file_write;
 	klass_firmware->build = fu_efi_firmware_file_build;
 	klass_firmware->export = fu_efi_firmware_file_export;

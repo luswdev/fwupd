@@ -40,33 +40,33 @@ fu_pxi_firmware_export(FuFirmware *firmware, FuFirmwareExportFlags flags, XbBuil
 }
 
 static gboolean
-fu_pxi_firmware_check_magic(FuFirmware *firmware, GBytes *fw, gsize offset, GError **error)
+fu_pxi_firmware_validate(FuFirmware *firmware, GInputStream *stream, gsize offset, GError **error)
 {
 	guint64 magic = 0;
 	FuPxiFirmware *self = FU_PXI_FIRMWARE(firmware);
+	gsize streamsz = 0;
 
 	/* is a footer, in normal bin file, the header is starts from the 32nd byte from the end. */
-	if (!fu_memread_uint64_safe(g_bytes_get_data(fw, NULL),
-				    g_bytes_get_size(fw),
-				    g_bytes_get_size(fw) - PIXART_RF_FW_HEADER_SIZE +
-					PIXART_RF_FW_HEADER_TAG_OFFSET,
-				    &magic,
-				    G_BIG_ENDIAN,
-				    error)) {
+	if (!fu_input_stream_size(stream, &streamsz, error))
+		return FALSE;
+	if (!fu_input_stream_read_u64(stream,
+				      streamsz - PIXART_RF_FW_HEADER_SIZE +
+					  PIXART_RF_FW_HEADER_TAG_OFFSET,
+				      &magic,
+				      G_BIG_ENDIAN,
+				      error)) {
 		g_prefix_error(error, "failed to read magic: ");
 		return FALSE;
 	}
 	if (magic != PIXART_RF_FW_HEADER_MAGIC) {
 		/* if the magic number is not found, then start from the 821st byte from the end for
 		 * HPAC header */
-		if (!fu_memread_uint64_safe(g_bytes_get_data(fw, NULL),
-					    g_bytes_get_size(fw),
-					    g_bytes_get_size(fw) -
-						PIXART_RF_FW_HEADER_HPAC_POS_FROM_END +
-						PIXART_RF_FW_HEADER_TAG_OFFSET,
-					    &magic,
-					    G_BIG_ENDIAN,
-					    error)) {
+		if (!fu_input_stream_read_u64(stream,
+					      streamsz - PIXART_RF_FW_HEADER_HPAC_POS_FROM_END +
+						  PIXART_RF_FW_HEADER_TAG_OFFSET,
+					      &magic,
+					      G_BIG_ENDIAN,
+					      error)) {
 			g_prefix_error(error, "failed to read magic: ");
 			return FALSE;
 		}
@@ -281,7 +281,7 @@ fu_pxi_firmware_class_init(FuPxiFirmwareClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	object_class->finalize = fu_pxi_firmware_finalize;
-	klass_firmware->check_magic = fu_pxi_firmware_check_magic;
+	klass_firmware->validate = fu_pxi_firmware_validate;
 	klass_firmware->parse = fu_pxi_firmware_parse;
 	klass_firmware->build = fu_pxi_firmware_build;
 	klass_firmware->write = fu_pxi_firmware_write;

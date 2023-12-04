@@ -565,7 +565,7 @@ fu_jabra_gnp_device_write_dfu_from_squif(FuJabraGnpDevice *self, GError **error)
 
 static FuFirmware *
 fu_jabra_gnp_device_prepare_firmware(FuDevice *device,
-				     GBytes *fw,
+				     GInputStream *stream,
 				     FwupdInstallFlags flags,
 				     GError **error)
 {
@@ -573,7 +573,7 @@ fu_jabra_gnp_device_prepare_firmware(FuDevice *device,
 	g_autoptr(FuFirmware) firmware = fu_jabra_gnp_firmware_new();
 
 	/* unzip and get images */
-	if (!fu_firmware_parse(firmware, fw, flags, error))
+	if (!fu_firmware_parse_stream(firmware, stream, 0x0, flags, error))
 		return NULL;
 	if (fu_jabra_gnp_firmware_get_dfu_pid(FU_JABRA_GNP_FIRMWARE(firmware)) != self->dfu_pid) {
 		g_set_error(error,

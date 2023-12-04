@@ -105,7 +105,7 @@ fu_thunderbolt_controller_read_status_block(FuThunderboltController *self, GErro
 {
 	gsize nr_chunks;
 	g_autoptr(GFile) nvmem = NULL;
-	g_autoptr(GBytes) controller_fw = NULL;
+	//	g_autoptr(GBytes) controller_fw = NULL;
 	g_autoptr(GInputStream) istr = NULL;
 	g_autoptr(FuFirmware) firmware = NULL;
 
@@ -118,10 +118,9 @@ fu_thunderbolt_controller_read_status_block(FuThunderboltController *self, GErro
 	istr = G_INPUT_STREAM(g_file_read(nvmem, NULL, error));
 	if (istr == NULL)
 		return FALSE;
-	controller_fw = g_input_stream_read_bytes(istr, nr_chunks * FU_TBT_CHUNK_SZ, NULL, error);
-	if (controller_fw == NULL)
-		return FALSE;
-	firmware = fu_firmware_new_from_gtypes(controller_fw,
+	//	controller_fw = g_input_stream_read_bytes(istr, nr_chunks * FU_TBT_CHUNK_SZ, NULL,
+	// error); 	if (controller_fw == NULL) 		return FALSE;
+	firmware = fu_firmware_new_from_gtypes(istr,
 					       0x0,
 					       FWUPD_INSTALL_FLAG_NO_SEARCH,
 					       error,

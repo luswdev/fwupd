@@ -67,11 +67,7 @@ struct _FuFirmwareClass {
 	gchar *(*get_checksum)(FuFirmware *self,
 			       GChecksumType csum_kind,
 			       GError **error)G_GNUC_WARN_UNUSED_RESULT;
-	gboolean (*check_magic)(FuFirmware *self, GBytes *fw, gsize offset, GError **error);
-	gboolean (*validate_stream)(FuFirmware *self,
-				    GInputStream *stream,
-				    gsize offset,
-				    GError **error);
+	gboolean (*validate)(FuFirmware *self, GInputStream *stream, gsize offset, GError **error);
 	gboolean (*check_compatible)(FuFirmware *self,
 				     FuFirmware *other,
 				     FwupdInstallFlags flags,
@@ -232,8 +228,11 @@ fu_firmware_new(void);
 FuFirmware *
 fu_firmware_new_from_bytes(GBytes *fw);
 FuFirmware *
-fu_firmware_new_from_gtypes(GBytes *fw, gsize offset, FwupdInstallFlags flags, GError **error, ...)
-    G_GNUC_NON_NULL(1);
+fu_firmware_new_from_gtypes(GInputStream *stream,
+			    gsize offset,
+			    FwupdInstallFlags flags,
+			    GError **error,
+			    ...) G_GNUC_NON_NULL(1);
 gchar *
 fu_firmware_to_string(FuFirmware *self) G_GNUC_NON_NULL(1);
 void
@@ -292,8 +291,13 @@ GBytes *
 fu_firmware_get_bytes_with_patches(FuFirmware *self, GError **error) G_GNUC_NON_NULL(1);
 void
 fu_firmware_set_bytes(FuFirmware *self, GBytes *bytes) G_GNUC_NON_NULL(1);
+gboolean
+fu_firmware_set_stream(FuFirmware *self, GInputStream *stream, GError **error)
+    G_GNUC_NON_NULL(1, 2);
 GInputStream *
 fu_firmware_get_stream(FuFirmware *self, GError **error) G_GNUC_NON_NULL(1);
+gsize
+fu_firmware_get_streamsz(FuFirmware *self) G_GNUC_NON_NULL(1);
 guint8
 fu_firmware_get_alignment(FuFirmware *self) G_GNUC_NON_NULL(1);
 void

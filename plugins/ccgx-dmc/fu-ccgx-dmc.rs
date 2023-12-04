@@ -202,7 +202,7 @@ struct CcgxDmcIntRqt {
 }
 
 // header structure of FWCT
-#[derive(New, Parse, ValidateBytes)]
+#[derive(New, Parse, ValidateStream)]
 struct CcgxDmcFwctInfo {
     signature: u32le == 0x54435746, // 'F' 'W' 'C' 'T'
     size: u16le,

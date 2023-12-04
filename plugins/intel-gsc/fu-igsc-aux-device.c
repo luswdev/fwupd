@@ -81,7 +81,7 @@ fu_igsc_aux_device_setup(FuDevice *device, GError **error)
 
 static FuFirmware *
 fu_igsc_aux_device_prepare_firmware(FuDevice *device,
-				    GBytes *fw,
+				    GInputStream *stream,
 				    FwupdInstallFlags flags,
 				    GError **error)
 {
@@ -90,7 +90,7 @@ fu_igsc_aux_device_prepare_firmware(FuDevice *device,
 	g_autoptr(FuIgscAuxFirmware) firmware = FU_IGSC_AUX_FIRMWARE(fu_igsc_aux_firmware_new());
 
 	/* parse container */
-	if (!fu_firmware_parse(FU_FIRMWARE(firmware), fw, flags, error))
+	if (!fu_firmware_parse_stream(FU_FIRMWARE(firmware), stream, 0x0, flags, error))
 		return NULL;
 
 	/* search the device list for a match */

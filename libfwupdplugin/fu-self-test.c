@@ -2693,16 +2693,16 @@ fu_firmware_new_from_gtypes_func(void)
 	g_autoptr(FuFirmware) firmware1 = NULL;
 	g_autoptr(FuFirmware) firmware2 = NULL;
 	g_autoptr(FuFirmware) firmware3 = NULL;
-	g_autoptr(GBytes) blob = NULL;
+	g_autoptr(GInputStream) stream = NULL;
 	g_autoptr(GError) error = NULL;
 
 	fn = g_test_build_filename(G_TEST_DIST, "tests", "firmware.dfu", NULL);
-	blob = fu_bytes_get_contents(fn, &error);
+	stream = fu_input_stream_from_path(fn, &error);
 	g_assert_no_error(error);
-	g_assert_nonnull(blob);
+	g_assert_nonnull(stream);
 
 	/* dfu -> FuDfuFirmware */
-	firmware1 = fu_firmware_new_from_gtypes(blob,
+	firmware1 = fu_firmware_new_from_gtypes(stream,
 						0x0,
 						FWUPD_INSTALL_FLAG_NONE,
 						&error,
@@ -2715,7 +2715,7 @@ fu_firmware_new_from_gtypes_func(void)
 	g_assert_cmpstr(G_OBJECT_TYPE_NAME(firmware1), ==, "FuDfuFirmware");
 
 	/* dfu -> FuFirmware */
-	firmware2 = fu_firmware_new_from_gtypes(blob,
+	firmware2 = fu_firmware_new_from_gtypes(stream,
 						0x0,
 						FWUPD_INSTALL_FLAG_NONE,
 						&error,
@@ -2727,7 +2727,7 @@ fu_firmware_new_from_gtypes_func(void)
 	g_assert_cmpstr(G_OBJECT_TYPE_NAME(firmware2), ==, "FuFirmware");
 
 	/* dfu -> error */
-	firmware3 = fu_firmware_new_from_gtypes(blob,
+	firmware3 = fu_firmware_new_from_gtypes(stream,
 						0x0,
 						FWUPD_INSTALL_FLAG_NONE,
 						&error,

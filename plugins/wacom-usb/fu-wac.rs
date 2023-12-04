@@ -1,6 +1,11 @@
 // Copyright (C) 2023 Richard Hughes <richard@hughsie.com>
 // SPDX-License-Identifier: LGPL-2.1+
 
+#[derive(ValidateStream)]
+struct WacFirmwareHdr {
+    magic: [char; 5] == "WACOM",
+}
+
 #[derive(Parse)]
 struct WtaBlockHeader {
     block_start: u32le,
@@ -74,20 +79,20 @@ enum WacDeviceStatus {
     WriteProtected = 1 << 4,
 }
 
-#[derive(New)]
+#[derive(New,Validate)]
 struct Id9UnknownCmd {
     unknown1: u16be == 0x7050,
     unknown2: u32be == 0,
     size: u16be,                  // Size of payload to be transferred
 }
-#[derive(New)]
+#[derive(New,Validate)]
 struct Id9SpiCmd {
     command: u8 == 0x91,
     start_addr: u32be == 0,
     size: u16be,                  // sizeof(data) + size of payload
     data: Id9UnknownCmd,
 }
-#[derive(New, Validate)]
+#[derive(New,Validate)]
 struct Id9LoaderCmd {
     command: u8,
     size: u16be,                  // sizeof(data) + size of payload

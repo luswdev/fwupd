@@ -30,17 +30,17 @@ fu_acpi_phat_version_element_export(FuFirmware *firmware,
 }
 
 static gboolean
-fu_acpi_phat_version_element_parse(FuFirmware *firmware,
-				   GBytes *fw,
-				   gsize offset,
-				   FwupdInstallFlags flags,
-				   GError **error)
+fu_acpi_phat_version_element_parse_stream(FuFirmware *firmware,
+					  GInputStream *stream,
+					  gsize offset,
+					  FwupdInstallFlags flags,
+					  GError **error)
 {
 	FuAcpiPhatVersionElement *self = FU_ACPI_PHAT_VERSION_ELEMENT(firmware);
 	g_autoptr(GByteArray) st = NULL;
 
 	/* unpack */
-	st = fu_struct_acpi_phat_version_element_parse_bytes(fw, offset, error);
+	st = fu_struct_acpi_phat_version_element_parse_stream(stream, offset, error);
 	if (st == NULL)
 		return FALSE;
 	fu_firmware_set_size(firmware, st->len);
@@ -130,7 +130,7 @@ fu_acpi_phat_version_element_class_init(FuAcpiPhatVersionElementClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuFirmwareClass *klass_firmware = FU_FIRMWARE_CLASS(klass);
 	object_class->finalize = fu_acpi_phat_version_element_finalize;
-	klass_firmware->parse = fu_acpi_phat_version_element_parse;
+	klass_firmware->parse_stream = fu_acpi_phat_version_element_parse_stream;
 	klass_firmware->write = fu_acpi_phat_version_element_write;
 	klass_firmware->export = fu_acpi_phat_version_element_export;
 	klass_firmware->build = fu_acpi_phat_version_element_build;
