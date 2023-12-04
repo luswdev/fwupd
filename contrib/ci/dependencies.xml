@@ -1536,6 +1536,7 @@
         <exclusive>armel</exclusive>
         <exclusive>mipsel</exclusive>
         <exclusive>m68k</exclusive>
+        <exclusive>loong64</exclusive>
       </control>
       <package variant="x86_64" />
       <package variant="i386" />
