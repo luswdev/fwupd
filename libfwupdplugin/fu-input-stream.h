@@ -63,12 +63,12 @@ gboolean
 fu_input_stream_chunkify(GInputStream *stream,
 			 FuInputStreamChunkifyFunc func_cb,
 			 gpointer user_data,
-			 GError **error) G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1);
+			 GError **error) G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1, 2);
 
 gboolean
 fu_input_stream_compute_sum8(GInputStream *stream,
 			     guint8 *value,
-			     GError **error) G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1);
+			     GError **error) G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1, 2);
 gchar *
 fu_input_stream_compute_checksum(GInputStream *stream,
 				 GChecksumType checksum_type,

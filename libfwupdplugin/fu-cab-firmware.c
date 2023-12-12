@@ -149,23 +149,13 @@ fu_cab_firmware_compute_checksum(const guint8 *buf, gsize bufsz, guint32 *checks
 }
 
 static gboolean
-fu_cab_firmware_compute_checksum_stream(GInputStream *stream, guint32 *checksum, GError **error)
+fu_cab_firmware_compute_checksum_stream_cb(const guint8 *buf,
+					   gsize bufsz,
+					   gpointer user_data,
+					   GError **error)
 {
-	g_autoptr(FuChunkArray) chunks = fu_chunk_array_new_from_stream(stream, 0x0, 0x8000, error);
-	if (chunks == NULL)
-		return FALSE;
-	for (gsize i = 0; i < fu_chunk_array_length(chunks); i++) {
-		g_autoptr(FuChunk) chk = NULL;
-		chk = fu_chunk_array_index(chunks, i, error);
-		if (chk == NULL)
-			return FALSE;
-		if (!fu_cab_firmware_compute_checksum(fu_chunk_get_data(chk),
-						      fu_chunk_get_data_sz(chk),
-						      checksum,
-						      error))
-			return FALSE;
-	}
-	return TRUE;
+	guint32 *checksum = (guint32 *)user_data;
+	return fu_cab_firmware_compute_checksum(buf, bufsz, checksum, error);
 }
 
 static voidpf
@@ -242,9 +232,10 @@ fu_cab_firmware_parse_data(FuCabFirmware *self,
 			guint32 checksum_actual = 0;
 			g_autoptr(GByteArray) hdr = g_byte_array_new();
 
-			if (!fu_cab_firmware_compute_checksum_stream(partial_stream,
-								     &checksum_actual,
-								     error))
+			if (!fu_input_stream_chunkify(partial_stream,
+						      fu_cab_firmware_compute_checksum_stream_cb,
+						      &checksum_actual,
+						      error))
 				return FALSE;
 			fu_byte_array_append_uint16(hdr, blob_comp, G_LITTLE_ENDIAN);
 			fu_byte_array_append_uint16(hdr, blob_uncomp, G_LITTLE_ENDIAN);
