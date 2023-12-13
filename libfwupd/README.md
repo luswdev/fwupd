@@ -3,7 +3,6 @@
 ## Planned API/ABI changes for next release
 
 * Typedef `FwupdFeatureFlags` to `guint64` so it's the same size on all platforms
-* Rename CET and SMAP security attributes `FWUPD_SECURITY_ATTR_ID_INTEL_SMAP` and `FWUPD_SECURITY_ATTR_ID_INTEL_CET_ENABLED` and `FWUPD_SECURITY_ATTR_ID_INTEL_CET_ACTIVE`
 
 ## Migration from Version 1.x.x
 
@@ -28,6 +27,9 @@
 * Remove use of flags `FWUPD_INSTALL_FLAG_IGNORE_POWER`
 * Remove the `soup-session` property in `FwupdClient`.
 * Rename the flag `FWUPD_CLIENT_DOWNLOAD_FLAG_ONLY_IPFS` to `_ONLY_P2P`
+* Rename the SMAP attribute from `FWUPD_SECURITY_ATTR_ID_INTEL_SMAP` to `FWUPD_SECURITY_ATTR_ID_SMAP`
+* Rename the CET enabled attribute from `FWUPD_SECURITY_ATTR_ID_INTEL_CET_ENABLED` to `FWUPD_SECURITY_ATTR_ID_CET_ENABLED`
+* Rename the CET active attribute `FWUPD_SECURITY_ATTR_ID_INTEL_CET_ACTIVE` to `FWUPD_SECURITY_ATTR_ID_CET_ACTIVE`
 
 ## Migration from Version 0.9.x
 
